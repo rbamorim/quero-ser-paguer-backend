@@ -43,7 +43,6 @@ public class OrderController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(dto);
 	}
 	
-	/*
 	@PutMapping("/{id}")
 	@ApiOperation(value = "Atualizar pedido")
 	public ResponseEntity<OrderDto> update(@PathVariable(name = "id") String id, @RequestBody @Valid OrderDto dto){
@@ -64,7 +63,6 @@ public class OrderController {
 		
 		return ResponseEntity.noContent().build();
 	}
-	*/
 
 	@GetMapping("/{id}")
 	@ApiOperation(value = "Buscar pedido pela chave")

@@ -27,32 +27,35 @@ public class OrderServiceImpl implements OrderService {
 
 	@Override
 	public void save(OrderDto dto) {
-		OrderModel orderModel = new OrderModel();
+		BigDecimal sum = dto.getOrderItemDtos().stream().map(OrderItemDto::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+		dto.setPrice(sum);
+		
 		List<OrderItemModel> orderItemModels = new ArrayList<OrderItemModel>();
-
+		OrderModel orderModel = new OrderModel();
 		BeanUtils.copyProperties(dto, orderModel);
-
-		BigDecimal sum = dto.getOrderItemDtos().stream().map(OrderItemDto::getPrice).reduce(BigDecimal.ZERO,
-				BigDecimal::add);
-
-		orderModel.setPrice(sum);
-		dto.getOrderItemDtos().parallelStream()
-				.forEachOrdered(orderItemDto -> orderItemModels.add(this.convert(orderItemDto)));
+		dto.getOrderItemDtos().stream().forEachOrdered(orderItemDto -> orderItemModels.add(this.convert(orderItemDto)));
 
 		orderRepository.save(orderModel, orderItemModels);
 
 		dto.setId(orderModel.getId());
 		dto.getOrderItemDtos().forEach(orderItemDto -> orderItemDto.setIdOrder(orderModel.getId()));
-		orderItemModels.parallelStream().forEachOrdered(orderItemModel -> dto.getOrderItemDtos().get(orderItemModels.indexOf(orderItemModel)).setId(orderItemModel.getId()));
+		orderItemModels.stream().forEachOrdered(orderItemModel -> dto.getOrderItemDtos().get(orderItemModels.indexOf(orderItemModel)).setId(orderItemModel.getId()));
 	}
 
 	@Override
 	public void update(OrderDto dto) {
+		BigDecimal sum = dto.getOrderItemDtos().stream().map(OrderItemDto::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+		dto.setPrice(sum);
+		
 		OrderModel orderModel = new OrderModel();
 		BeanUtils.copyProperties(dto, orderModel);
-		orderRepository.update(orderModel);
+		List<OrderItemModel> orderItemModels = new ArrayList<OrderItemModel>();
+		dto.getOrderItemDtos().stream().forEachOrdered(orderItemDto -> orderItemModels.add(this.convert(orderItemDto)));
+		
+		orderRepository.update(orderModel, orderItemModels);
 		dto.setId(orderModel.getId());
-
+		dto.getOrderItemDtos().clear();
+		orderItemModels.stream().forEach(orderItemModel -> dto.getOrderItemDtos().add(this.convert(orderItemModel)));
 	}
 
 	@Override
@@ -65,18 +68,18 @@ public class OrderServiceImpl implements OrderService {
 	@Override
 	public OrderDto findById(String id) {
 		OrderModel orderModel = orderRepository.findById(id);
-		
 
 		if (orderModel != null) {
 			OrderDto orderDto = new OrderDto();
 			BeanUtils.copyProperties(orderModel, orderDto);
-			
-			List<OrderItemModel> OrderItemModels = this.orderItemrepository.findAll();
-			if (OrderItemModels != null) {
+
+			List<OrderItemModel> orderItemModels = orderItemrepository.findByIdOrder(orderModel.getId());
+
+			if (orderItemModels != null) {
 				orderDto.setOrderItemDtos(new ArrayList<OrderItemDto>());
-				OrderItemModels.stream().filter(orderItemModel -> orderItemModel.getIdOrder().equals(orderModel.getId())).forEach(orderItemModel -> orderDto.getOrderItemDtos().add(this.convert(orderItemModel)));
+				orderItemModels.stream().forEach(orderItemModel -> orderDto.getOrderItemDtos().add(this.convert(orderItemModel)));
 			}
-			
+
 			return orderDto;
 		}
 
@@ -86,16 +89,17 @@ public class OrderServiceImpl implements OrderService {
 	@Override
 	public List<OrderDto> findByAll() {
 		List<OrderModel> orderModels = orderRepository.findAll();
-		
+
 		if (orderModels != null) {
 			List<OrderDto> orderDtos = new ArrayList<OrderDto>();
 			orderModels.stream().forEachOrdered(orderModel -> orderDtos.add(this.convert(orderModel)));
-			
+
 			for (OrderDto orderDto : orderDtos) {
-				List<OrderItemModel> OrderItemModels = this.orderItemrepository.findAll();
+				List<OrderItemModel> OrderItemModels = orderItemrepository.findByIdOrder(orderDto.getId());
+
 				if (OrderItemModels != null) {
 					orderDto.setOrderItemDtos(new ArrayList<OrderItemDto>());
-					OrderItemModels.stream().filter(orderItemModel -> orderItemModel.getIdOrder().equals(orderDto.getId())).forEach(orderItemModel -> orderDto.getOrderItemDtos().add(this.convert(orderItemModel)));
+					OrderItemModels.stream().forEach(orderItemModel -> orderDto.getOrderItemDtos().add(this.convert(orderItemModel)));
 				}
 			}
 
@@ -110,7 +114,7 @@ public class OrderServiceImpl implements OrderService {
 		BeanUtils.copyProperties(orderModel, orderDto);
 		return orderDto;
 	}
-	
+
 	private OrderItemDto convert(OrderItemModel orderItemModel) {
 		OrderItemDto orderItemDto = new OrderItemDto();
 		BeanUtils.copyProperties(orderItemModel, orderItemDto);

@@ -27,6 +27,30 @@ public class OrderRepository extends BaseRepository<OrderModel> {
         orderItemModels.forEach(orderItemModel -> orderItemRepository.save(orderItemModel));
 	}
 	
+	public void update(OrderModel model, List<OrderItemModel> orderItemModels) {
+		super.update(model);
+		
+		OrderItemModel orderItemModelFilter = new OrderItemModel();
+		orderItemModelFilter.setIdOrder(model.getId());
+		
+		List<OrderItemModel> orderItemModelDBs = orderItemRepository.findByIdOrder(model.getId());
+		orderItemModelDBs.stream().forEach(orderItemModel -> orderItemRepository.delete(orderItemModel));
+		
+        orderItemModels.forEach(orderItemModel -> orderItemModel.setIdOrder(model.getId()));
+        orderItemModels.forEach(orderItemModel -> orderItemRepository.save(orderItemModel));
+	}
+	
+	@Override
+	public void delete(OrderModel model) {
+		super.delete(model);
+		
+		OrderItemModel orderItemModelFilter = new OrderItemModel();
+		orderItemModelFilter.setIdOrder(model.getId());
+		
+		List<OrderItemModel> orderItemModels = orderItemRepository.findByIdOrder(model.getId());
+		orderItemModels.forEach(orderItemModel -> orderItemRepository.delete(orderItemModel));
+	}
+	
 	@Override
 	protected Class<OrderModel> keyObject() {
 		return OrderModel.class;
